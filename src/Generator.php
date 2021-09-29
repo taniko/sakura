@@ -4,10 +4,11 @@ declare(strict_types=1);
 namespace Taniko\Sakura;
 
 use Symfony\Component\Yaml\Yaml;
+use Taniko\Sakura\Builder\PathBuilder;
 
 class Generator
 {
-    private const VERSION = '3.0.8';
+    private const VERSION = '3.1.0';
     private array $actions = [];
 
     public function __construct(private string $title, private string $version, private array $server = [])
@@ -15,7 +16,7 @@ class Generator
     }
 
     /**
-     * @param array $actions
+     * @param array<int, string> $actions
      */
     public function actions(array $actions)
     {
@@ -23,11 +24,11 @@ class Generator
     }
 
     /**
-     * @return string
      * @throws \ReflectionException
      */
-    public function generate(): string
+    public function run(): string
     {
+        $pathBuilder = new PathBuilder($this->actions);
         $data = [
             'openapi' => Generator::VERSION,
             'servers' => $this->server,
@@ -35,41 +36,8 @@ class Generator
                 'title' => $this->title,
                 'version' => $this->version,
             ],
-            'paths' => [],
+            'paths' => $pathBuilder->build(),
         ];
-
-        foreach ($this->actions as $action) {
-            $reflection = new \ReflectionClass($action);
-            $methods = $reflection->getMethods();
-            foreach ($methods as $method) {
-                $keys = array_map(fn($attribute) => $attribute->getName(), $method->getAttributes());
-                if (count(array_intersect([Path::class, Parameter::class, Response::class], $keys)) !== 3) {
-                    continue;
-                }
-                $operation = null;
-                $path = null;
-                $schema = [];
-                foreach ($method->getAttributes() as $attribute) {
-                    if ($attribute->getName() === Path::class) {
-                        $v = $attribute->newInstance()->data();
-                        $operation = $v['method'];
-                        $path = $v['path'];
-                        unset($v['method'], $v['path']);
-                        $schema += $v;
-                    } elseif ($attribute->getName() === Parameter::class) {
-                        $schema['parameters'][] = $attribute->newInstance()->data();
-                    } elseif ($attribute->getName() === Response::class) {
-                        $response = $attribute->newInstance()->data();
-                        $status = $response['status'];
-                        $content = $response['content'];
-                        unset($response['status'], $response['content']);
-                        $response['content']['application/json'] = $content;
-                        $schema['responses'][$status] = $response;
-                    }
-                }
-                $data['paths'][$path][$operation] = $schema;
-            }
-        }
-        return Yaml::dump($data, 100, 2, flags: Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE);
+        return Yaml::dump(json_decode(json_encode($data), true), 100, 2, flags: Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE);
     }
 }

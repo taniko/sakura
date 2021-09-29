@@ -1,14 +1,19 @@
 <?php
 declare(strict_types=1);
 
-namespace Taniko\Sakura;
+namespace Taniko\Sakura\Attributes;
 
 use Attribute;
-use JetBrains\PhpStorm\ArrayShape;
 
 #[Attribute(Attribute::TARGET_METHOD)]
-class Path
+class Path implements \JsonSerializable
 {
+    public const GET = 'get';
+    public const POST = 'post';
+    public const DELETE = 'delete';
+    public const PUT = 'put';
+    public const PATCH = 'patch';
+
     public function __construct(
         private string  $method,
         private string  $path,
@@ -22,24 +27,23 @@ class Path
         $this->method = strtolower($this->method);
     }
 
-    /**
-     * @return array
-     */
-    #[ArrayShape([
-        'method' => "string",
-        'path' => "string",
-        'security' => "array|null",
-        'deprecated' => "bool|null",
-        'description' => "null|string",
-        'summary' => "null|string",
-        'tags' => "array|null"
-    ])]
-    public function data(): array
+    public function getMethod(): string
     {
-        $data = [
-            'method' => $this->method,
-            'path' => $this->path,
-        ];
+        return $this->method;
+    }
+
+    public function getPath(): string
+    {
+        return $this->path;
+    }
+
+    /**
+     * @return array{method: string, path: string, security?: array, deprecated?: bool, description?: bool, summary?: string, tags?: array<int, string>}
+     *
+     */
+    public function jsonSerialize(): array
+    {
+        $data = [];
         if (isset($this->tags)) $data['tags'] = $this->tags;
         if (isset($this->summary)) $data['summary'] = $this->summary;
         if (isset($this->description)) $data['description'] = $this->description;

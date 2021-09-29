@@ -11,5 +11,10 @@
             "Taniko\\Sakura\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Taniko\\Sakura\\": "sample/"
+        }
+    },
     "minimum-stability": "dev"
 }
